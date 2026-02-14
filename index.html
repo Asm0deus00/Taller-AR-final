@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Lighting Studio - Visualización de Iluminación</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            z-index: 1000;
+            max-width: 320px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            font-size: 11px;
+        }
+        
+        #controls::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #controls::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        
+        #controls::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+        
+        .control-group {
+            margin: 8px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        input[type="color"] {
+            width: 60px;
+            height: 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin: 3px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button.secondary {
+            background: #2196F3;
+        }
+        
+        button.secondary:hover {
+            background: #0b7dda;
+        }
+        
+        .value-display {
+            display: inline-block;
+            margin-left: 8px;
+            color: #fff;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        
+        #instructions {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+            font-size: 11px;
+            max-width: 220px;
+            z-index: 999;
+        }
+        
+        .grid-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Instrucciones -->
+    <div id="instructions">
+        <h3 style="margin-top:0; font-size: 13px;">📸 AR Lighting Studio</h3>
+        <p><strong>Instructions:</strong></p>
+        <ol style="margin: 5px 0; padding-left: 18px; font-size: 10px;">
+            <li>Print the Hiro marker</li>
+            <li>Place it on the <strong>floor center</strong></li>
+            <li>Point camera at the marker</li>
+            <li>Adjust dimensions and lights</li>
+        </ol>
+        <p style="font-size: 10px; margin-top: 8px;">
+            💡 Active lights: <span id="lightCount">0</span><br>
+            📦 Active objects: <span id="objectCount">1</span>
+        </p>
+    </div>
+
+    <!-- Panel de controles -->
+    <div id="controls">
+        <h3 style="margin-top: 0; margin-bottom: 10px; text-align: center; font-size: 13px;">⚙️ Controls</h3>
+        
+        <div class="control-group">
+            <label>📐 Set Dimensions:</label>
+            <div>
+                <label style="font-size: 9px;">Width (m):</label>
+                <input type="range" id="widthControl" min="1" max="8" step="0.2" value="4">
+                <span class="value-display" id="widthValue">4.0 m</span>
+            </div>
+            <div style="margin-top: 5px;">
+                <label style="font-size: 9px;">Height (m):</label>
+                <input type="range" id="heightControl" min="1" max="6" step="0.2" value="3">
+                <span class="value-display" id="heightValue">3.0 m</span>
+            </div>
+            <div style="margin-top: 5px;">
+                <label style="font-size: 9px;">Depth (m):</label>
+                <input type="range" id="depthControl" min="1" max="8" step="0.2" value="4">
+                <span class="value-display" id="depthValue">4.0 m</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>💡 Key Light</label>
+            <div class="grid-controls">
+                <div>
+                    <label style="font-size: 10px;">Intensity:</label>
+                    <input type="range" id="light1Intensity" min="0" max="3" step="0.1" value="1">
+                    <span class="value-display" id="light1IntValue" style="font-size: 11px;">1.0</span>
+                </div>
+                <div>
+                    <label style="font-size: 10px;">Color:</label>
+                    <input type="color" id="light1Color" value="#ffffff">
+                </div>
+            </div>
+            <div class="grid-controls">
+                <div>
+                    <label style="font-size: 10px;">Position X:</label>
+                    <input type="range" id="light1X" min="-4" max="4" step="0.1" value="1.5">
+                </div>
+                <div>
+                    <label style="font-size: 10px;">Position Y:</label>
+                    <input type="range" id="light1Y" min="0" max="5" step="0.1" value="2">
+                </div>
+            </div>
+            <div>
+                <label style="font-size: 10px;">Position Z:</label>
+                <input type="range" id="light1Z" min="-4" max="4" step="0.1" value="1.5">
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>🔆 Fill Light</label>
+            <div class="grid-controls">
+                <div>
+                    <label style="font-size: 10px;">Intensity:</label>
+                    <input type="range" id="light2Intensity" min="0" max="2" step="0.1" value="0.5">
+                    <span class="value-display" id="light2IntValue" style="font-size: 11px;">0.5</span>
+                </div>
+                <div>
+                    <label style="font-size: 10px;">Color:</label>
+                    <input type="color" id="light2Color" value="#87ceeb">
+                </div>
+            </div>
+            <div class="grid-controls">
+                <div>
+                    <label style="font-size: 10px;">Position X:</label>
+                    <input type="range" id="light2X" min="-4" max="4" step="0.1" value="-1.5">
+                </div>
+                <div>
+                    <label style="font-size: 10px;">Position Y:</label>
+                    <input type="range" id="light2Y" min="0" max="5" step="0.1" value="1.8">
+                </div>
+            </div>
+            <div>
+                <label style="font-size: 10px;">Position Z:</label>
+                <input type="range" id="light2Z" min="-4" max="4" step="0.1" value="1">
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>✨ Back Light</label>
+            <div class="grid-controls">
+                <div>
+                    <label style="font-size: 10px;">Intensity:</label>
+                    <input type="range" id="light3Intensity" min="0" max="2" step="0.1" value="0.3">
+                    <span class="value-display" id="light3IntValue" style="font-size: 11px;">0.3</span>
+                </div>
+                <div>
+                    <label style="font-size: 10px;">Color:</label>
+                    <input type="color" id="light3Color" value="#ffaa00">
+                </div>
+            </div>
+            <div class="grid-controls">
+                <div>
+                    <label style="font-size: 10px;">Position X:</label>
+                    <input type="range" id="light3X" min="-4" max="4" step="0.1" value="0">
+                </div>
+                <div>
+                    <label style="font-size: 10px;">Position Y:</label>
+                    <input type="range" id="light3Y" min="0" max="5" step="0.1" value="2.5">
+                </div>
+            </div>
+            <div>
+                <label style="font-size: 10px;">Position Z:</label>
+                <input type="range" id="light3Z" min="-4" max="4" step="0.1" value="-1.5">
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 15px;">
+            <button onclick="toggleObject()">🔄 Change Object</button>
+            <button class="secondary" onclick="resetLighting()">↺ Reset Lights</button>
+            <button class="secondary" onclick="toggleVolume()">📦 Show Volume</button>
+        </div>
+    </div>
+
+    <a-scene
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; precision: medium; antialias: true;">
+        
+        <a-assets>
+            <a-asset-item id="sphere" src=""></a-asset-item>
+        </a-assets>
+        
+        <a-marker preset="hiro" id="mainMarker">
+            <a-box 
+                id="volumeBox"
+                position="0 1.5 0"
+                width="4"
+                height="3"
+                depth="4"
+                material="opacity: 0.1; transparent: true; color: #00ff00;"
+                wireframe="true"
+                wireframe-linewidth="2"
+                visible="true">
+            </a-box>
+            
+            <a-plane 
+                position="0 0 0" 
+                rotation="-90 0 0" 
+                width="4" 
+                height="4" 
+                material="src: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDIwIDAgTCAwIDAgMCAyMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNDQ0IiBzdHJva2Utd2lkdGg9IjAuNSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==); opacity: 0.5; transparent: true;">
+            </a-plane>
+            
+            <a-plane 
+                id="backWall"
+                position="0 1.5 -2" 
+                rotation="0 0 0" 
+                width="4" 
+                height="3" 
+                color="#333333"
+                material="opacity: 0.2; transparent: true;">
+            </a-plane>
+            
+            <a-plane 
+                id="leftWall"
+                position="-2 1.5 0" 
+                rotation="0 90 0" 
+                width="4" 
+                height="3" 
+                color="#333333"
+                material="opacity: 0.15; transparent: true;">
+            </a-plane>
+            
+            <a-plane 
+                id="rightWall"
+                position="2 1.5 0" 
+                rotation="0 -90 0" 
+                width="4" 
+                height="3" 
+                color="#333333"
+                material="opacity: 0.15; transparent: true;">
+            </a-plane>
+            
+            <a-entity id="sceneObject" position="0 0.5 0">
+                <a-sphere 
+                    id="object1"
+                    radius="0.4" 
+                    color="#ff6b6b"
+                    material="roughness: 0.7; metalness: 0.3"
+                    visible="true">
+                </a-sphere>
+                
+                <a-box 
+                    id="object2"
+                    width="0.6" 
+                    height="0.6" 
+                    depth="0.6"
+                    color="#4ecdc4"
+                    material="roughness: 0.7; metalness: 0.3"
+                    visible="false">
+                </a-box>
+                
+                <a-cylinder 
+                    id="object3"
+                    radius="0.3" 
+                    height="0.8"
+                    color="#95e1d3"
+                    material="roughness: 0.7; metalness: 0.3"
+                    visible="false">
+                </a-cylinder>
+            </a-entity>
+            
+            <a-light type="ambient" color="#ffffff" intensity="0.3"></a-light>
+            
+            <a-entity id="keyLight" position="1.5 2 1.5">
+                <a-light 
+                    type="point" 
+                    color="#ffffff" 
+                    intensity="1"
+                    distance="10"
+                    decay="2">
+                </a-light>
+                <a-sphere 
+                    radius="0.08" 
+                    color="#ffff00"
+                    material="emissive: #ffff00; emissiveIntensity: 2">
+                </a-sphere>
+            </a-entity>
+            
+            <a-entity id="fillLight" position="-1.5 1.8 1">
+                <a-light 
+                    type="point" 
+                    color="#87ceeb" 
+                    intensity="0.5"
+                    distance="8"
+                    decay="2">
+                </a-light>
+                <a-sphere 
+                    radius="0.08" 
+                    color="#87ceeb"
+                    material="emissive: #87ceeb; emissiveIntensity: 2">
+                </a-sphere>
+            </a-entity>
+            
+            <a-entity id="backLight" position="0 2.5 -1.5">
+                <a-light 
+                    type="point" 
+                    color="#ffaa00" 
+                    intensity="0.3"
+                    distance="8"
+                    decay="2">
+                </a-light>
+                <a-sphere 
+                    radius="0.08" 
+                    color="#ffaa00"
+                    material="emissive: #ffaa00; emissiveIntensity: 2">
+                </a-sphere>
+            </a-entity>
+        </a-marker>
+
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        let currentObject = 0;
+        const objects = ['object1', 'object2', 'object3'];
+        let volumeVisible = true;
+        
+        function updateCounters() {
+            document.getElementById('lightCount').textContent = '3';
+            document.getElementById('objectCount').textContent = '1';
+        }
+        
+        document.getElementById('widthControl').addEventListener('input', function(e) {
+            const width = parseFloat(e.target.value);
+            document.getElementById('widthValue').textContent = width.toFixed(1) + ' m';
+            updateSetDimensions();
+        });
+        
+        document.getElementById('heightControl').addEventListener('input', function(e) {
+            const height = parseFloat(e.target.value);
+            document.getElementById('heightValue').textContent = height.toFixed(1) + ' m';
+            updateSetDimensions();
+        });
+        
+        document.getElementById('depthControl').addEventListener('input', function(e) {
+            const depth = parseFloat(e.target.value);
+            document.getElementById('depthValue').textContent = depth.toFixed(1) + ' m';
+            updateSetDimensions();
+        });
+        
+        function updateSetDimensions() {
+            const width = parseFloat(document.getElementById('widthControl').value);
+            const height = parseFloat(document.getElementById('heightControl').value);
+            const depth = parseFloat(document.getElementById('depthControl').value);
+            
+            const volumeBox = document.getElementById('volumeBox');
+            volumeBox.setAttribute('width', width);
+            volumeBox.setAttribute('height', height);
+            volumeBox.setAttribute('depth', depth);
+            volumeBox.setAttribute('position', `0 ${height/2} 0`);
+            
+            const floorPlane = document.querySelector('a-marker a-plane[rotation="-90 0 0"]');
+            if (floorPlane) {
+                floorPlane.setAttribute('width', width);
+                floorPlane.setAttribute('height', depth);
+            }
+            
+            const backWall = document.getElementById('backWall');
+            const leftWall = document.getElementById('leftWall');
+            const rightWall = document.getElementById('rightWall');
+            
+            if (backWall) {
+                backWall.setAttribute('position', `0 ${height/2} ${-depth/2}`);
+                backWall.setAttribute('width', width);
+                backWall.setAttribute('height', height);
+            }
+            
+            if (leftWall) {
+                leftWall.setAttribute('position', `${-width/2} ${height/2} 0`);
+                leftWall.setAttribute('width', depth);
+                leftWall.setAttribute('height', height);
+            }
+            
+            if (rightWall) {
+                rightWall.setAttribute('position', `${width/2} ${height/2} 0`);
+                rightWall.setAttribute('width', depth);
+                rightWall.setAttribute('height', height);
+            }
+        }
+        
+        document.getElementById('light1Intensity').addEventListener('input', function(e) {
+            const intensity = parseFloat(e.target.value);
+            document.getElementById('light1IntValue').textContent = intensity.toFixed(1);
+            document.querySelector('#keyLight a-light').setAttribute('intensity', intensity);
+        });
+        
+        document.getElementById('light1Color').addEventListener('input', function(e) {
+            document.querySelector('#keyLight a-light').setAttribute('color', e.target.value);
+            document.querySelector('#keyLight a-sphere').setAttribute('color', e.target.value);
+            document.querySelector('#keyLight a-sphere').setAttribute('material', `emissive: ${e.target.value}; emissiveIntensity: 2`);
+        });
+        
+        document.getElementById('light1X').addEventListener('input', function(e) {
+            updateLightPosition('keyLight');
+        });
+        
+        document.getElementById('light1Y').addEventListener('input', function(e) {
+            updateLightPosition('keyLight');
+        });
+        
+        document.getElementById('light1Z').addEventListener('input', function(e) {
+            updateLightPosition('keyLight');
+        });
+        
+        document.getElementById('light2Intensity').addEventListener('input', function(e) {
+            const intensity = parseFloat(e.target.value);
+            document.getElementById('light2IntValue').textContent = intensity.toFixed(1);
+            document.querySelector('#fillLight a-light').setAttribute('intensity', intensity);
+        });
+        
+        document.getElementById('light2Color').addEventListener('input', function(e) {
+            document.querySelector('#fillLight a-light').setAttribute('color', e.target.value);
+            document.querySelector('#fillLight a-sphere').setAttribute('color', e.target.value);
+            document.querySelector('#fillLight a-sphere').setAttribute('material', `emissive: ${e.target.value}; emissiveIntensity: 2`);
+        });
+        
+        document.getElementById('light2X').addEventListener('input', function(e) {
+            updateLightPosition('fillLight');
+        });
+        
+        document.getElementById('light2Y').addEventListener('input', function(e) {
+            updateLightPosition('fillLight');
+        });
+        
+        document.getElementById('light2Z').addEventListener('input', function(e) {
+            updateLightPosition('fillLight');
+        });
+        
+        document.getElementById('light3Intensity').addEventListener('input', function(e) {
+            const intensity = parseFloat(e.target.value);
+            document.getElementById('light3IntValue').textContent = intensity.toFixed(1);
+            document.querySelector('#backLight a-light').setAttribute('intensity', intensity);
+        });
+        
+        document.getElementById('light3Color').addEventListener('input', function(e) {
+            document.querySelector('#backLight a-light').setAttribute('color', e.target.value);
+            document.querySelector('#backLight a-sphere').setAttribute('color', e.target.value);
+            document.querySelector('#backLight a-sphere').setAttribute('material', `emissive: ${e.target.value}; emissiveIntensity: 2`);
+        });
+        
+        document.getElementById('light3X').addEventListener('input', function(e) {
+            updateLightPosition('backLight');
+        });
+        
+        document.getElementById('light3Y').addEventListener('input', function(e) {
+            updateLightPosition('backLight');
+        });
+        
+        document.getElementById('light3Z').addEventListener('input', function(e) {
+            updateLightPosition('backLight');
+        });
+        
+        function updateLightPosition(lightId) {
+            let x, y, z;
+            
+            if (lightId === 'keyLight') {
+                x = parseFloat(document.getElementById('light1X').value);
+                y = parseFloat(document.getElementById('light1Y').value);
+                z = parseFloat(document.getElementById('light1Z').value);
+            } else if (lightId === 'fillLight') {
+                x = parseFloat(document.getElementById('light2X').value);
+                y = parseFloat(document.getElementById('light2Y').value);
+                z = parseFloat(document.getElementById('light2Z').value);
+            } else if (lightId === 'backLight') {
+                x = parseFloat(document.getElementById('light3X').value);
+                y = parseFloat(document.getElementById('light3Y').value);
+                z = parseFloat(document.getElementById('light3Z').value);
+            }
+            
+            document.getElementById(lightId).setAttribute('position', `${x} ${y} ${z}`);
+        }
+        
+        function toggleObject() {
+            objects.forEach(id => {
+                document.getElementById(id).setAttribute('visible', 'false');
+            });
+            
+            currentObject = (currentObject + 1) % objects.length;
+            document.getElementById(objects[currentObject]).setAttribute('visible', 'true');
+        }
+        
+        function resetLighting() {
+            document.getElementById('widthControl').value = 4;
+            document.getElementById('widthValue').textContent = '4.0 m';
+            document.getElementById('heightControl').value = 3;
+            document.getElementById('heightValue').textContent = '3.0 m';
+            document.getElementById('depthControl').value = 4;
+            document.getElementById('depthValue').textContent = '4.0 m';
+            updateSetDimensions();
+            
+            document.getElementById('light1Intensity').value = 1;
+            document.getElementById('light1IntValue').textContent = '1.0';
+            document.getElementById('light1Color').value = '#ffffff';
+            document.getElementById('light1X').value = 1.5;
+            document.getElementById('light1Y').value = 2;
+            document.getElementById('light1Z').value = 1.5;
+            
+            document.getElementById('light2Intensity').value = 0.5;
+            document.getElementById('light2IntValue').textContent = '0.5';
+            document.getElementById('light2Color').value = '#87ceeb';
+            document.getElementById('light2X').value = -1.5;
+            document.getElementById('light2Y').value = 1.8;
+            document.getElementById('light2Z').value = 1;
+            
+            document.getElementById('light3Intensity').value = 0.3;
+            document.getElementById('light3IntValue').textContent = '0.3';
+            document.getElementById('light3Color').value = '#ffaa00';
+            document.getElementById('light3X').value = 0;
+            document.getElementById('light3Y').value = 2.5;
+            document.getElementById('light3Z').value = -1.5;
+            
+            document.querySelector('#keyLight a-light').setAttribute('intensity', 1);
+            document.querySelector('#keyLight a-light').setAttribute('color', '#ffffff');
+            document.getElementById('keyLight').setAttribute('position', '1.5 2 1.5');
+            
+            document.querySelector('#fillLight a-light').setAttribute('intensity', 0.5);
+            document.querySelector('#fillLight a-light').setAttribute('color', '#87ceeb');
+            document.getElementById('fillLight').setAttribute('position', '-1.5 1.8 1');
+            
+            document.querySelector('#backLight a-light').setAttribute('intensity', 0.3);
+            document.querySelector('#backLight a-light').setAttribute('color', '#ffaa00');
+            document.getElementById('backLight').setAttribute('position', '0 2.5 -1.5');
+        }
+        
+        function toggleVolume() {
+            volumeVisible = !volumeVisible;
+            document.getElementById('volumeBox').setAttribute('visible', volumeVisible);
+        }
+        
+        updateCounters();
+    </script>
+</body>
+</html>
